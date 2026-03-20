@@ -1,3 +1,4 @@
+const PORT = process.env.PORT || 5000;
 const ownerRoutes = require("./routes/owner");
 const express    = require("express");
 const cors       = require("cors");
@@ -11,7 +12,6 @@ const postRoutes    = require("./routes/posts");
 const paymentRoutes = require("./routes/payments");
 
 const app  = express();
-const PORT = process.env.PORT || 5000;
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 app.use(cors());
