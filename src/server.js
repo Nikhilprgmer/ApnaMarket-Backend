@@ -10,7 +10,8 @@ const authRoutes    = require("./routes/auth");
 const shopRoutes    = require("./routes/shops");
 const postRoutes    = require("./routes/posts");
 const paymentRoutes = require("./routes/payments");
-
+const userRoutes  = require("./routes/users");  // ← add this
+app.use("/api/users", userRoutes);               // ← add this
 const app  = express();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
