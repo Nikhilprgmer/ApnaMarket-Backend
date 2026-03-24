@@ -76,22 +76,23 @@ router.post("/register", async (req, res) => {
     );
 
     // 6. Send OTP
-    try {
-      if (otpMethod === "email") {
-        await sendEmailOTP(email, otp);
-      } else {
-        await sendSmsOTP(`+91${phone}`, otp);
-      }
-    } catch (otpErr) {
-      console.error("OTP send failed:", otpErr.message);
-      // Don't block registration if OTP fails — log and continue
-      // In production, handle this more carefully
-    }
+    // 6. Reply instantly — don't wait for email
+res.status(201).json({
+  message: "Registration successful. OTP sent.",
+  userId:  result.rows[0].id,
+});
 
-    res.status(201).json({
-      message: "Registration successful. OTP sent.",
-      userId:  result.rows[0].id,
-    });
+// Send OTP after response (non-blocking)
+try {
+  if (otpMethod === "email") {
+    await sendEmailOTP(email, otp);
+  } else {
+    await sendSmsOTP(`+91${phone}`, otp);
+  }
+  console.log("OTP sent successfully to:", otpMethod === "email" ? email : phone);
+} catch (otpErr) {
+  console.error("OTP send failed:", otpErr.message);
+}
 
   } catch (err) {
     console.error("Register error:", err.message);
