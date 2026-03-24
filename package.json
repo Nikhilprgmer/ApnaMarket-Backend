@@ -9,17 +9,30 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.0.0",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.0.0",
-    "express": "^4.18.0",
+    "express": "^4.22.1",
     "jsonwebtoken": "^9.0.0",
     "multer": "^1.4.4",
-    "nodemailer": "^6.9.0",
+    "nodemailer": "^6.10.1",
     "pg": "^8.11.0",
     "razorpay": "^2.9.0",
     "twilio": "^4.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"
-  }
+  },
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://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@github.com/Nikhilprgmer/ApnaMarket-Backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Nikhilprgmer/ApnaMarket-Backend/issues"
+  },
+  "homepage": "https://github.com/Nikhilprgmer/ApnaMarket-Backend#readme"
 }
