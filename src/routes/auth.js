@@ -11,13 +11,15 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email ───────────────────────────────────────────────
 async function sendEmailOTP(email, otp) {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+ const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
   try {
     await transporter.sendMail({
       from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,
@@ -85,25 +87,21 @@ router.post("/register", async (req, res) => {
     );
 
     // 6. Send OTP before responding so API does not report false success
-    try {
-      if (normalizedOtpMethod === "email") {
-        await sendEmailOTP(email, otp);
-      } else {
-        await sendSmsOTP(`+91${phone}`, otp);
-      }
-      console.log("OTP sent successfully to:", normalizedOtpMethod === "email" ? email : phone);
-    } catch (otpErr) {
-      console.error("OTP send failed during register:", otpErr.message);
-      return res.status(502).json({
-        message: "User created, but OTP delivery failed. Please call resend-otp.",
-        userId: result.rows[0].id,
-      });
-    }
+  // Reply instantly — don't wait for email
+res.status(201).json({
+  message: "Registration successful. OTP sent.",
+  userId:  result.rows[0].id,
+});
 
-    res.status(201).json({
-      message: "Registration successful. OTP sent.",
-      userId:  result.rows[0].id,
-    });
+// Send email after response (non-blocking)
+if (normalizedOtpMethod === "email") {
+  sendEmailOTP(email, otp)
+    .then(() => console.log("OTP email sent to:", email))
+    .catch(err => console.error("OTP send failed:", err.message));
+} else {
+  sendSmsOTP(`+91${phone}`, otp)
+    .catch(err => console.error("SMS send failed:", err.message));
+}
 
   } catch (err) {
     console.error("Register error:", err.message);
