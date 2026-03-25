@@ -20,7 +20,7 @@ async function sendEmailOTP(email, otp) {
     subject: "Your ApnaMarket OTP",
     html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
   });
-  const t = nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
