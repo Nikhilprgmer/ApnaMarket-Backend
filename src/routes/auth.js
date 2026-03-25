@@ -3,7 +3,8 @@ const bcrypt     = require("bcryptjs");
 const jwt        = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const db         = require("../config/db");
-
+const { Resend } = require("resend");
+const resend = new Resend('re_YCmUiK1R_2fbE4YQAHoyMd9tTXgZnNod2');
 // ─── Nodemailer transporter (created once, reused) ───────────────────────────
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -34,19 +35,12 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email ───────────────────────────────────────────────
 async function sendEmailOTP(email, otp) {
-  const mailOptions = {
-    from: '"ApnaMarket" <businessotp07@gmail.com>',
+  await resend.emails.send({
+    from: "ApnaMarket <onboarding@resend.dev>",
     to: email,
     subject: "Your ApnaMarket OTP",
-    html: `
-      <h2>Your OTP is: <strong>${otp}</strong></h2>
-      <p>Valid for 10 minutes.</p>
-    `,
-  };
-
-  // Let the error bubble up — don't swallow it here
-  const info = await transporter.sendMail(mailOptions);
-  console.log("✅ Email sent to:", email, "| Message ID:", info.messageId);
+    html: `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
+  });
 }
 
 // ─── Helper: send OTP via SMS ─────────────────────────────────────────────────
