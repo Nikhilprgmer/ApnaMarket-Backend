@@ -20,16 +20,18 @@ async function sendEmailOTP(email, otp) {
     subject: "Your ApnaMarket OTP",
     html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
   });
-  const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // App Password
-  },
-});
+  const t = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: { 
+      user: 'businessotp07@gmail.com', 
+      pass: 'ztusrilyhpoifewo'  // ← replace with your real password
+    }
+  });
   try {
     await transporter.sendMail({
-      from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,
+      from:    `"ApnaMarket" businessotp07@gmail.com`,
       to:      email,
       subject: "Your ApnaMarket OTP",
       html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
