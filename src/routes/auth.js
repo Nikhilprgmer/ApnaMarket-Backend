@@ -18,12 +18,12 @@ async function sendEmailOTP(email, otp) {
       secure: false, // false for 587
       auth: {
         user: 'businessotp07@gmail.com', 
-    pass: 'ztusrilyhpoifewo'
+        pass: 'ztusrilyhpoifewo'
       },
     });
 
     await transporter.sendMail({
-      from: `"ApnaMarket" <${process.env.EMAIL_USER}>`,
+      from: `"ApnaMarket" <businessotp07@gmail.com>`,
       to: email,
       subject: "Your ApnaMarket OTP",
       html: `
@@ -98,7 +98,7 @@ router.post("/register", async (req, res) => {
 
 // Send email after response (non-blocking)
 if (normalizedOtpMethod === "email") {
-  sendEmailOTP(email, otp)
+  await sendEmailOTP(email, otp)
     .then(() => console.log("OTP email sent to:", email))
     .catch(err => console.error("OTP send failed:", err.message));
 } else {
