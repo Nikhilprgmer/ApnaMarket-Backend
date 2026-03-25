@@ -4,6 +4,29 @@ const jwt        = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const db         = require("../config/db");
 
+// ─── Nodemailer transporter (created once, reused) ───────────────────────────
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: "businessotp07@gmail.com",
+    pass: "ztusrilyhpoifewo",
+  },
+  tls: {
+    rejectUnauthorized: false, // ← fixes self-signed cert issues in some envs
+  },
+});
+
+// Verify transporter on startup so you catch config errors early
+transporter.verify((error) => {
+  if (error) {
+    console.error("❌ SMTP transporter error:", error.message);
+  } else {
+    console.log("✅ SMTP transporter ready");
+  }
+});
+
 // ─── Helper: generate 6 digit OTP ────────────────────────────────────────────
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -11,32 +34,19 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email ───────────────────────────────────────────────
 async function sendEmailOTP(email, otp) {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false, // false for 587
-      auth: {
-        user: 'businessotp07@gmail.com', 
-        pass: 'ztusrilyhpoifewo'
-      },
-    });
+  const mailOptions = {
+    from: '"ApnaMarket" <businessotp07@gmail.com>',
+    to: email,
+    subject: "Your ApnaMarket OTP",
+    html: `
+      <h2>Your OTP is: <strong>${otp}</strong></h2>
+      <p>Valid for 10 minutes.</p>
+    `,
+  };
 
-    await transporter.sendMail({
-      from: `"ApnaMarket" <businessotp07@gmail.com>`,
-      to: email,
-      subject: "Your ApnaMarket OTP",
-      html: `
-        <h2>Your OTP is: <strong>${otp}</strong></h2>
-        <p>Valid for 10 minutes.</p>
-      `,
-    });
-
-    console.log("Email sent successfully to:", email);
-  } catch (error) {
-    console.error("Email send error:", error);
-    throw new Error("Failed to send OTP email");
-  }
+  // Let the error bubble up — don't swallow it here
+  const info = await transporter.sendMail(mailOptions);
+  console.log("✅ Email sent to:", email, "| Message ID:", info.messageId);
 }
 
 // ─── Helper: send OTP via SMS ─────────────────────────────────────────────────
@@ -61,7 +71,7 @@ router.post("/register", async (req, res) => {
   const normalizedOtpMethod = (otpMethod || "phone").toLowerCase();
 
   try {
-    // 1. Check all fields present
+    // 1. Validate fields
     if (!name || !email || !phone || !password) {
       return res.status(400).json({ message: "All fields are required." });
     }
@@ -92,23 +102,33 @@ router.post("/register", async (req, res) => {
       [name, email, phone, passwordHash, role, otp, otpExpires]
     );
 
-    // 6. Send OTP before responding so API does not report false success
-  // Reply instantly — don't wait for email
+    const userId = result.rows[0].id;
 
+    // 6. Send OTP — await properly, return 500 if it fails
+    if (normalizedOtpMethod === "email") {
+      try {
+        await sendEmailOTP(email, otp);
+      } catch (emailErr) {
+        console.error("❌ OTP email failed:", emailErr.message);
+        // Rollback user insert so they can retry registration cleanly
+        await db.query("DELETE FROM users WHERE id = $1", [userId]);
+        return res.status(500).json({ message: "Failed to send OTP email. Please try again." });
+      }
+    } else {
+      try {
+        await sendSmsOTP(`+91${phone}`, otp);
+      } catch (smsErr) {
+        console.error("❌ OTP SMS failed:", smsErr.message);
+        await db.query("DELETE FROM users WHERE id = $1", [userId]);
+        return res.status(500).json({ message: "Failed to send OTP SMS. Please try again." });
+      }
+    }
 
-// Send email after response (non-blocking)
-if (normalizedOtpMethod === "email") {
-  await sendEmailOTP(email, otp)
-    .then(() => console.log("OTP email sent to:", email))
-    .catch(err => console.error("OTP send failed:", err.message));
-} else {
-  sendSmsOTP(`+91${phone}`, otp)
-    .catch(err => console.error("SMS send failed:", err.message));
-}
-res.status(201).json({
-  message: "Registration successful. OTP sent. Please verify your account.",
-  userId:  result.rows[0].id,
-});
+    // 7. Respond only after OTP is confirmed sent
+    return res.status(201).json({
+      message: "Registration successful. OTP sent. Please verify your account.",
+      userId,
+    });
 
   } catch (err) {
     console.error("Register error:", err.message);
@@ -214,11 +234,11 @@ router.post("/login", async (req, res) => {
       message: "Login successful.",
       token,
       user: {
-        id:   user.id,
-        name: user.name,
+        id:    user.id,
+        name:  user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        role:  user.role,
       },
     });
 
