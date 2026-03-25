@@ -11,34 +11,31 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email ───────────────────────────────────────────────
 async function sendEmailOTP(email, otp) {
-  const { Resend } = require("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  
-  await resend.emails.send({
-    from:    "ApnaMarket <onboarding@resend.dev>",
-    to:      email,
-    subject: "Your ApnaMarket OTP",
-    html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
-  });
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: { 
-      user: 'businessotp07@gmail.com', 
-      pass: 'ztusrilyhpoifewo'  // ← replace with your real password
-    }
-  });
   try {
-    await transporter.sendMail({
-      from:    `"ApnaMarket" businessotp07@gmail.com`,
-      to:      email,
-      subject: "Your ApnaMarket OTP",
-      html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false, // false for 587
+      auth: {
+        user: 'businessotp07@gmail.com', 
+    pass: 'ztusrilyhpoifewo'
+      },
     });
-  } catch (err) {
-    const reason = err?.response || err?.message || "Unknown email delivery error";
-    throw new Error(`Email OTP send failed: ${reason}`);
+
+    await transporter.sendMail({
+      from: `"ApnaMarket" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Your ApnaMarket OTP",
+      html: `
+        <h2>Your OTP is: <strong>${otp}</strong></h2>
+        <p>Valid for 10 minutes.</p>
+      `,
+    });
+
+    console.log("Email sent successfully to:", email);
+  } catch (error) {
+    console.error("Email send error:", error);
+    throw new Error("Failed to send OTP email");
   }
 }
 
