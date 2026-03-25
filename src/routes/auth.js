@@ -11,15 +11,16 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email ───────────────────────────────────────────────
 async function sendEmailOTP(email, otp) {
- const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+  const { Resend } = require("resend");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  
+  await resend.emails.send({
+    from:    "ApnaMarket <onboarding@resend.dev>",
+    to:      email,
+    subject: "Your ApnaMarket OTP",
+    html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
+  });
+
   try {
     await transporter.sendMail({
       from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,

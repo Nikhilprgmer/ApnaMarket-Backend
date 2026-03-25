@@ -17,6 +17,7 @@
     "nodemailer": "^6.10.1",
     "pg": "^8.11.0",
     "razorpay": "^2.9.0",
+    "resend": "^6.9.4",
     "twilio": "^4.0.0"
   },
   "devDependencies": {
@@ -24,9 +25,9 @@
   },
   "description": "",
   "repository": {
-  "type": "git",
-  "url": "git+https://github.com/Nikhilprgmer/ApnaMarket-Backend.git"
-},
+    "type": "git",
+    "url": "git+https://github.com/Nikhilprgmer/ApnaMarket-Backend.git"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
