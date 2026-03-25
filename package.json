@@ -24,9 +24,9 @@
   },
   "description": "",
   "repository": {
-    "type": "git",
-    "url": "git+https://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@github.com/Nikhilprgmer/ApnaMarket-Backend.git"
-  },
+  "type": "git",
+  "url": "git+https://github.com/Nikhilprgmer/ApnaMarket-Backend.git"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",

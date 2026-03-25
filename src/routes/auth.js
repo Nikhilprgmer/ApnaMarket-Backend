@@ -1,6 +1,7 @@
 const router     = require("express").Router();
 const bcrypt     = require("bcryptjs");
 const jwt        = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const db         = require("../config/db");
 
 // ─── Helper: generate 6 digit OTP ────────────────────────────────────────────
@@ -10,7 +11,6 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email ───────────────────────────────────────────────
 async function sendEmailOTP(email, otp) {
-  const nodemailer = require("nodemailer");
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -18,12 +18,17 @@ async function sendEmailOTP(email, otp) {
       pass: process.env.EMAIL_PASS,
     },
   });
-  await transporter.sendMail({
-    from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,
-    to:      email,
-    subject: "Your ApnaMarket OTP",
-    html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
-  });
+  try {
+    await transporter.sendMail({
+      from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,
+      to:      email,
+      subject: "Your ApnaMarket OTP",
+      html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
+    });
+  } catch (err) {
+    const reason = err?.response || err?.message || "Unknown email delivery error";
+    throw new Error(`Email OTP send failed: ${reason}`);
+  }
 }
 
 // ─── Helper: send OTP via SMS ─────────────────────────────────────────────────
@@ -45,11 +50,15 @@ async function sendSmsOTP(phone, otp) {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/register", async (req, res) => {
   const { name, email, phone, password, role = "consumer", otpMethod = "phone" } = req.body;
+  const normalizedOtpMethod = (otpMethod || "phone").toLowerCase();
 
   try {
     // 1. Check all fields present
     if (!name || !email || !phone || !password) {
       return res.status(400).json({ message: "All fields are required." });
+    }
+    if (!["email", "phone"].includes(normalizedOtpMethod)) {
+      return res.status(400).json({ message: "Invalid otpMethod. Use 'email' or 'phone'." });
     }
 
     // 2. Check if user already exists
@@ -75,24 +84,26 @@ router.post("/register", async (req, res) => {
       [name, email, phone, passwordHash, role, otp, otpExpires]
     );
 
-    // 6. Send OTP
-    // 6. Reply instantly — don't wait for email
-res.status(201).json({
-  message: "Registration successful. OTP sent.",
-  userId:  result.rows[0].id,
-});
+    // 6. Send OTP before responding so API does not report false success
+    try {
+      if (normalizedOtpMethod === "email") {
+        await sendEmailOTP(email, otp);
+      } else {
+        await sendSmsOTP(`+91${phone}`, otp);
+      }
+      console.log("OTP sent successfully to:", normalizedOtpMethod === "email" ? email : phone);
+    } catch (otpErr) {
+      console.error("OTP send failed during register:", otpErr.message);
+      return res.status(502).json({
+        message: "User created, but OTP delivery failed. Please call resend-otp.",
+        userId: result.rows[0].id,
+      });
+    }
 
-// Send OTP after response (non-blocking)
-try {
-  if (otpMethod === "email") {
-    await sendEmailOTP(email, otp);
-  } else {
-    await sendSmsOTP(`+91${phone}`, otp);
-  }
-  console.log("OTP sent successfully to:", otpMethod === "email" ? email : phone);
-} catch (otpErr) {
-  console.error("OTP send failed:", otpErr.message);
-}
+    res.status(201).json({
+      message: "Registration successful. OTP sent.",
+      userId:  result.rows[0].id,
+    });
 
   } catch (err) {
     console.error("Register error:", err.message);
@@ -218,8 +229,13 @@ router.post("/login", async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/resend-otp", async (req, res) => {
   const { userId, otpMethod = "phone" } = req.body;
+  const normalizedOtpMethod = (otpMethod || "phone").toLowerCase();
 
   try {
+    if (!["email", "phone"].includes(normalizedOtpMethod)) {
+      return res.status(400).json({ message: "Invalid otpMethod. Use 'email' or 'phone'." });
+    }
+
     const result = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "User not found." });
@@ -235,7 +251,7 @@ router.post("/resend-otp", async (req, res) => {
       [otp, otpExpires, userId]
     );
 
-    if (otpMethod === "email") {
+    if (normalizedOtpMethod === "email") {
       await sendEmailOTP(user.email, otp);
     } else {
       await sendSmsOTP(`+91${user.phone}`, otp);
