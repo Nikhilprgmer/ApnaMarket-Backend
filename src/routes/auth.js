@@ -20,7 +20,13 @@ async function sendEmailOTP(email, otp) {
     subject: "Your ApnaMarket OTP",
     html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
   });
-
+  const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // App Password
+  },
+});
   try {
     await transporter.sendMail({
       from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,
@@ -89,10 +95,7 @@ router.post("/register", async (req, res) => {
 
     // 6. Send OTP before responding so API does not report false success
   // Reply instantly — don't wait for email
-res.status(201).json({
-  message: "Registration successful. OTP sent.",
-  userId:  result.rows[0].id,
-});
+
 
 // Send email after response (non-blocking)
 if (normalizedOtpMethod === "email") {
@@ -103,6 +106,10 @@ if (normalizedOtpMethod === "email") {
   sendSmsOTP(`+91${phone}`, otp)
     .catch(err => console.error("SMS send failed:", err.message));
 }
+res.status(201).json({
+  message: "Registration successful. OTP sent. Please verify your account.",
+  userId:  result.rows[0].id,
+});
 
   } catch (err) {
     console.error("Register error:", err.message);

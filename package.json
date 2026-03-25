@@ -23,11 +23,7 @@
   "devDependencies": {
     "nodemon": "^3.0.0"
   },
-  "description": "",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Nikhilprgmer/ApnaMarket-Backend.git"
-  },
+ 
   "keywords": [],
   "author": "",
   "license": "ISC",
