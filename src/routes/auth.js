@@ -10,22 +10,30 @@ function generateOTP() {
 
 // ─── Helper: send OTP via email (Resend.com) ──────────────────────────────────
 async function sendEmailOTP(email, otp) {
-  const nodemailer = require("nodemailer");
-  const transporter = nodemailer.createTransport({
-    host:   "smtp.gmail.com",
-    port:   465,
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.SENDGRID_API_KEY}`,
+      "Content-Type":  "application/json",
     },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email }] }],
+      from:    { email: process.env.EMAIL_USER, name: "ApnaMarket" },
+      subject: "Your ApnaMarket OTP",
+      content: [{
+        type:  "text/html",
+        value: `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
+      }],
+    }),
   });
-  await transporter.sendMail({
-    from:    `"ApnaMarket" <${process.env.EMAIL_USER}>`,
-    to:      email,
-    subject: "Your ApnaMarket OTP",
-    html:    `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`,
-  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    console.error("SendGrid error:", data);
+    throw new Error("Failed to send OTP email");
+  }
+
+  console.log("Email sent to:", email);
 }
 
 // ─── Helper: send OTP via SMS ─────────────────────────────────────────────────
