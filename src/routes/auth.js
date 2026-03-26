@@ -13,7 +13,7 @@ async function sendEmailOTP(email, otp) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer re_YCmUiK1R_2fbE4YQAHoyMd9tTXgZnNod2}`,
+      "Authorization": `Bearer re_GEKq76Sm_8dQEwfppc5d4xe2W2hX2KVc6}`,
       "Content-Type":  "application/json",
     },
     body: JSON.stringify({
