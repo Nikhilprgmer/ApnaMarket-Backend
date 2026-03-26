@@ -1,0 +1,4 @@
+.env
+node_modules
+testmail.js
+testmail465.js
