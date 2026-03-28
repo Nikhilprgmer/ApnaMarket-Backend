@@ -18,7 +18,7 @@ async function sendEmailOTP(email, otp) {
     },
     body: JSON.stringify({
       personalizations: [{ to: [{ email }] }],
-      from:    { email: process.env.EMAIL_USER, name: "ApnaMarket" },
+      from:    { email: "otp@seonimart.online", name: "SeoniMart"  },
       subject: "Your ApnaMarket OTP",
       content: [{
         type:  "text/html",
