@@ -14,37 +14,30 @@ router.get("/", async (req, res) => {
     sortBy    = "nearest",
     lat,
     lng,
-    radius    = 10,   // km, default 10km
+    radius    = 10,
   } = req.query;
 
   try {
     const params     = [];
     let   paramCount = 1;
-    let   distanceSelect = "";
-    let   distanceFilter = "";
-    let   orderBy        = "s.created_at DESC";
+    let   distanceSQL = "";
+    let   orderBy     = "s.created_at DESC";
 
-    // ── If user sent GPS coords, add distance calc + radius filter ──
+    // Haversine formula — no PostGIS needed
     if (lat && lng) {
-      distanceSelect = `,
+      distanceSQL = `,
         ROUND(
-          ST_Distance(
-            s.location,
-            ST_SetSRID(ST_MakePoint($${paramCount}, $${paramCount + 1}), 4326)::geography
-          ) / 1000.0
-        , 1) AS distance_km`;
+          (6371 * acos(
+            LEAST(1.0, cos(radians($${paramCount}))
+            * cos(radians(s.latitude))
+            * cos(radians(s.longitude) - radians($${paramCount + 1}))
+            + sin(radians($${paramCount}))
+            * sin(radians(s.latitude))
+          ))
+        ::numeric, 1) AS distance_km`;
 
-      distanceFilter = `
-        AND s.location IS NOT NULL
-        AND ST_DWithin(
-          s.location,
-          ST_SetSRID(ST_MakePoint($${paramCount}, $${paramCount + 1}), 4326)::geography,
-          $${paramCount + 2}
-        )`;
-
-      // NOTE: ST_MakePoint takes (longitude, latitude) — NOT the other way
-      params.push(parseFloat(lng), parseFloat(lat), parseFloat(radius) * 1000);
-      paramCount += 3;
+      params.push(parseFloat(lat), parseFloat(lng));
+      paramCount += 2;
 
       if (sortBy === "nearest") orderBy = "distance_km ASC";
     }
@@ -53,20 +46,42 @@ router.get("/", async (req, res) => {
 
     let query = `
       SELECT s.*, c.name AS category_name, c.slug AS category_slug
-             ${distanceSelect}
+             ${distanceSQL}
       FROM shops s
       LEFT JOIN categories c ON s.category_id = c.id
       WHERE s.is_active = true
-      ${distanceFilter}
+      AND s.latitude IS NOT NULL
+      AND s.longitude IS NOT NULL
     `;
 
-    // Filter by category
+    // Radius filter using Haversine — only when GPS sent
+    if (lat && lng) {
+      query += `
+        AND (6371 * acos(
+          LEAST(1.0, cos(radians($1))
+          * cos(radians(s.latitude))
+          * cos(radians(s.longitude) - radians($2))
+          + sin(radians($1))
+          * sin(radians(s.latitude))
+          )
+        )) <= $${paramCount++}
+      `;
+      params.push(parseFloat(radius));
+    } else {
+      // No GPS — show all shops, remove the NOT NULL filter
+      query = `
+        SELECT s.*, c.name AS category_name, c.slug AS category_slug
+        FROM shops s
+        LEFT JOIN categories c ON s.category_id = c.id
+        WHERE s.is_active = true
+      `;
+    }
+
     if (categorySlug) {
       query += ` AND c.slug = $${paramCount++}`;
       params.push(categorySlug);
     }
 
-    // Filter by minimum rating
     if (minRating > 0) {
       query += ` AND s.avg_rating >= $${paramCount++}`;
       params.push(parseFloat(minRating));
@@ -82,7 +97,6 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 });
-
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/shops/categories
 // Returns all categories
@@ -163,17 +177,14 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Name, address and category are required." });
     }
 
+    // No PostGIS — just save lat/lng directly, columns already exist
     const result = await db.query(
       `INSERT INTO shops
-         (owner_id, category_id, name, description, address, latitude, longitude, phone, location)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-         CASE
-           WHEN $6 IS NOT NULL AND $7 IS NOT NULL
-           THEN ST_SetSRID(ST_MakePoint($7, $6), 4326)::geography
-           ELSE NULL
-         END
-       ) RETURNING *`,
-      [ownerId, categoryId, name, description, address, latitude, longitude, phone]
+         (owner_id, category_id, name, description, address, latitude, longitude, phone, open_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [ownerId, categoryId, name, description, address,
+       latitude || null, longitude || null, phone, req.body.open_time || null]
     );
 
     res.status(201).json({
