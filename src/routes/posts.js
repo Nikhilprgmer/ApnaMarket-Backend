@@ -154,5 +154,54 @@ router.delete("/:id", auth, async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 });
+// GET /api/posts/:id/comments
+router.get("/:id/comments", async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT c.id, c.comment, c.created_at,
+              u.name AS user_name
+       FROM comments c
+       JOIN users u ON c.user_id = u.id
+       WHERE c.post_id = $1
+       ORDER BY c.created_at ASC`,
+      [req.params.id]
+    );
+    res.json({ comments: result.rows });
+  } catch (err) {
+    console.error("Get comments error:", err.message);
+    res.status(500).json({ message: "Server error." });
+  }
+});
 
+// POST /api/posts/:id/comments
+router.post("/:id/comments", auth, async (req, res) => {
+  const { comment } = req.body;
+  const userId      = req.user.userId;
+  try {
+    if (!comment || !comment.trim())
+      return res.status(400).json({ message: "Comment cannot be empty." });
+
+    const result = await db.query(
+      `INSERT INTO comments (post_id, user_id, comment)
+       VALUES ($1, $2, $3)
+       RETURNING id, comment, created_at`,
+      [req.params.id, userId, comment.trim()]
+    );
+
+    // Get user name to return with comment
+    const userRes = await db.query(
+      "SELECT name FROM users WHERE id = $1", [userId]
+    );
+
+    res.status(201).json({
+      comment: {
+        ...result.rows[0],
+        user_name: userRes.rows[0].name,
+      }
+    });
+  } catch (err) {
+    console.error("Post comment error:", err.message);
+    res.status(500).json({ message: "Server error." });
+  }
+});
 module.exports = router;
